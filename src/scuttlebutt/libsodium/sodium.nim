@@ -23,19 +23,20 @@ when defined(windows):
 elif defined(macosx):
   const libsodium_fn* = "libsodium.dylib"
 else:
-  const libsodium_fn* = "libsodium.so.18"
+  const libsodium_fn* = "libsodium.so(.18|.23)"
 
 
 {.pragma: sodium_import, importc, dynlib: libsodium_fn.}
 
 
+
 # helpers
 
 template cpt[I](target: array[I, char]): ptr cuchar =
-  cast[ptr cuchar](cstring(target))
+  cast[ptr cuchar](unsafeAddr target[0])
 
 template cpt(target: string): ptr cuchar =
-  cast[ptr cuchar](cstring(target))
+  cast[ptr cuchar](unsafeAddr target[0])
 
 template cpsize[I](target: array[I, char]): csize =
   csize(target.len)
@@ -626,10 +627,10 @@ proc crypto_generichash(
 
 proc crypto_generichash*(data: string,
                          hashlen: int = crypto_generichash_BYTES,
-                         key: string = nil): string =
+                         key: string = ""): string =
   ## Generate a hash of "data" of len "hashlen" using an optional key
   ## hashlen defaults to crypto_generichash_BYTES
-  if key != nil:
+  if key != "":
     doAssert(crypto_generichash_KEYBYTES_MIN <= key.len)
     doAssert(key.len <= crypto_generichash_KEYBYTES_MAX)
 
@@ -643,7 +644,7 @@ proc crypto_generichash*(data: string,
     m = cpt data
     mlen = cpsize data
     k =
-      if key == nil: nil
+      if key == "": nil
       else: cpt key
 
     klen = cpsize key
@@ -682,7 +683,7 @@ proc new_generic_hash*(key: string,
   ## The GenericHash is to be updated with .update()
   ## Upon calling .finalize() on it it will return a
   ## hash value of length "out_len"
-  if key != nil:
+  if key != "":
     doAssert crypto_generichash_KEYBYTES_MIN.int <= key.len
     doAssert key.len <= crypto_generichash_KEYBYTES_MAX.int
   doAssert crypto_generichash_BYTES_MIN.int <= out_len
@@ -692,7 +693,7 @@ proc new_generic_hash*(key: string,
   let
     state = cpt result.state
     k =
-      if key == nil: nil
+      if key == "": nil
       else: cpt key
     klen = cpsize key
     olen = csize out_len
